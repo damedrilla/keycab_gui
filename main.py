@@ -7,6 +7,7 @@ from PySide6.QtWidgets import QDialog, QProgressBar
 from PySide6.QtCore import QTimer
 from py122u import nfc
 from PySide6.QtCore import QThread, Signal
+import datetime
 
 ############################### MAIN PAGE ###############################
 class MainPage(QWidget):
@@ -256,21 +257,25 @@ class ThirdPage(QWidget):
         super().__init__()
         self.stacked_widget = stacked_widget
 
-        # Set the background color of the third page
+        # Set the default background color of the third page
         self.setStyleSheet("background-color: #001f3f; color: white;")  # Dark blue background, white text
 
         # Create a label to display messages
         self.label = QLabel("Please scan your ID")
         self.label.setAlignment(Qt.AlignCenter)
-        self.label.setStyleSheet("font-size: 18px; font-weight: bold;")
+        self.label.setStyleSheet("font-size: 30px; font-weight: bold;")  # Set font size to 30
 
         # Create a layout for the page
         layout = QVBoxLayout()
         layout.addWidget(self.label)
         self.setLayout(layout)
 
-        # Start the card scanning process
-        self.start_card_scanning()
+    def showEvent(self, event):
+        """Reset the page state when it is shown."""
+        super().showEvent(event)
+        self.label.setText("Please scan your ID")  # Reset the label text
+        self.setStyleSheet("background-color: #001f3f; color: white;")  # Reset the background color
+        self.start_card_scanning()  # Restart the card scanning process
 
     def start_card_scanning(self):
         # Update the label to prompt the user to scan their ID
@@ -288,23 +293,36 @@ class ThirdPage(QWidget):
 
         # Simulate a server request to fetch cardholder data
         try:
-            response = requests.get(f"https://example.com/api/cardholders/{uid}")
-            if response.status_code == 200:
-                self.label.setText("Transaction successful!")
-                self.log_transaction(uid)
+            result = getIDholder(uid)
+            print(uid + " " + str(result))
+            if result[0] == 200:
+                self.setStyleSheet("background-color: green; color: white;")  # Set background to green
+                self.label.setText("Access granted!")
             else:
-                self.label.setText("Transaction failed. Cardholder not found.")
+                self.setStyleSheet("background-color: red; color: white;")  # Set background to red
+                self.label.setText("Access denied. Cardholder not found or disabled")
         except Exception as e:
+            self.setStyleSheet("background-color: red; color: white;")  # Set background to red
             self.label.setText(f"Error: {str(e)}")
+
+        # Ensure the font size remains consistent
+        self.label.setStyleSheet("font-size: 30px; font-weight: bold;")
 
         # Return to the main page after 2 seconds
         QTimer.singleShot(2000, self.go_to_main_page)
 
     def log_transaction(self, uid):
         # Simulate logging the transaction to the server
+        headers = {"X-API-KEY": "keycab.api.key"}
         try:
-            response = requests.post("https://example.com/api/logs", json={"uid": uid})
-            if response.status_code == 201:
+            res = requests.post('https://keycabinet.cspc.edu.ph/logs/store', json={
+                "faculty_id": uid,
+                "key_id": 1,
+                "details": "Borrowed laboratory key",
+                "date_time_borrowed": datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            }, headers=headers)
+            print(res.content)
+            if res.status_code == 201:
                 print("Transaction logged successfully.")
             else:
                 print("Failed to log transaction.")
@@ -313,7 +331,11 @@ class ThirdPage(QWidget):
 
     def handle_error(self, error_message):
         # Display error messages
+        self.setStyleSheet("background-color: red; color: white;")  # Set background to red
         self.label.setText(f"Error: {error_message}")
+
+        # Ensure the font size remains consistent
+        self.label.setStyleSheet("font-size: 30px; font-weight: bold;")
 
         # Return to the main page after 2 seconds
         QTimer.singleShot(2000, self.go_to_main_page)
@@ -425,13 +447,28 @@ class ConnectionPopup(QDialog):
         # Close the main connection popup
         self.reject()  # Close the popup and indicate failure
 
+
+def getIDholder(uid):
+    headers = {"X-API-KEY": "keycab.api.key"}
+    req = requests.get("https://keycabinet.cspc.edu.ph/api/faculty", headers = headers)
+    result = req.json()
+    
+    for _faculty in range(len(result)):
+        if(str(uid) == result[_faculty]['rfid_uid']):
+            if (result[_faculty]['status'] == "Disabled"):
+                return [403, result[_faculty]["faculty_id"]]
+            else:
+                return [200, result[_faculty]["faculty_id"]]
+        else:
+            continue
+    return [404, None]
+
 def getUID(): 
     def getID():
         uid_parsed = ""
         try:
             reader = nfc.Reader()
             reader.connect()
-            reader.mute_buzzer()
             raw_uid = reader.get_uid()
             uid = raw_uid[::-1]
             for _byte in range(len(raw_uid)):
