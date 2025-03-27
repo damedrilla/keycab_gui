@@ -3,11 +3,12 @@ from PySide6.QtWidgets import QApplication, QWidget, QLabel, QVBoxLayout, QPushB
 from PySide6.QtCore import Qt
 from PySide6.QtGui import QPixmap, QFont, QIntValidator  # Import QPixmap for handling images and QFont for setting the font
 import requests
-from PySide6.QtWidgets import QDialog, QProgressBar
+from PySide6.QtWidgets import QDialog, QProgressBar, QMessageBox
 from PySide6.QtCore import QTimer
 from py122u import nfc
 from PySide6.QtCore import QThread, Signal
 import datetime
+from threading import Event
 
 ############################### MAIN PAGE ###############################
 class MainPage(QWidget):
@@ -132,7 +133,7 @@ class SecondPage(QWidget):
         # Create a label and set its text
         label = QLabel("Enter the key number (1-9), enter 0 to go back:")
         label.setAlignment(Qt.AlignCenter)
-        label_font = QFont("Arial", 30, QFont.Bold)  # Set font to Arial, size 20, bold
+        label_font = QFont("Arial", 30, QFont.Bold)  # Set font to Arial, size 30, bold
         label.setFont(label_font)
 
         # Create a text field with a validator to accept only numbers 1-9
@@ -155,7 +156,7 @@ class SecondPage(QWidget):
         # Create a "Proceed" button
         proceed_button = QPushButton("[Numpad Enter] Proceed")
         self.style_button(proceed_button)  # Apply button styling
-        proceed_button.clicked.connect(self.proceed_to_third_page)  # Connect to proceed action
+        proceed_button.clicked.connect(self.confirm_selection)  # Connect to confirmation prompt
         proceed_button.setShortcut(Qt.Key_Enter)  # Assign hotkey [Numpad Enter]
 
         # Wrap the grid in a QWidget to apply rounded corners
@@ -179,7 +180,12 @@ class SecondPage(QWidget):
         layout.addWidget(grid_container)
         self.setLayout(layout)
 
-    def proceed_to_third_page(self):
+    def showEvent(self, event):
+        """Reset the text field when the page is shown."""
+        super().showEvent(event)
+        self.text_field.clear()  # Clear the text field
+
+    def confirm_selection(self):
         # Get the value from the text field
         value = self.text_field.text()
 
@@ -216,8 +222,29 @@ class SecondPage(QWidget):
             error_dialog.exec()
             return
 
+        # Show a confirmation prompt
+        confirmation = QMessageBox.question(
+            self,
+            "Confirm Selection",
+            f"Are you sure you want to select key {value}?",
+            QMessageBox.Yes | QMessageBox.No,
+        )
+
+        if confirmation == QMessageBox.Yes:
+            # If the user confirms, proceed to the third page
+            print(f"User confirmed selection: {value}")  # Debugging message
+            self.proceed_to_third_page(value)
+        else:
+            # If the user cancels, stay on the current page
+            print("User canceled the selection.")  # Debugging message
+
+    def proceed_to_third_page(self, value):
         # Print the value to the terminal for debugging
-        print(f"Entered value: {value}")
+        print(f"Proceeding to third page with value: {value}")
+
+        # Pass the value to the third page
+        third_page = self.stacked_widget.widget(2)  # Get the ThirdPage instance
+        third_page.set_selected_value(value)  # Pass the value to ThirdPage
 
         # Navigate to the third page
         self.stacked_widget.setCurrentIndex(2)
@@ -261,7 +288,7 @@ class ThirdPage(QWidget):
         self.setStyleSheet("background-color: #001f3f; color: white;")  # Dark blue background, white text
 
         # Create a label to display messages
-        self.label = QLabel("Please scan your ID")
+        self.label = QLabel("Please scan your ID (Press 0 to go back)")
         self.label.setAlignment(Qt.AlignCenter)
         self.label.setStyleSheet("font-size: 30px; font-weight: bold;")  # Set font size to 30
 
@@ -269,6 +296,17 @@ class ThirdPage(QWidget):
         layout = QVBoxLayout()
         layout.addWidget(self.label)
         self.setLayout(layout)
+
+        # Initialize a variable to store the selected value
+        self.selected_value = None
+
+    def set_selected_value(self, value):
+        """Set the selected key value from the SecondPage."""
+        self.selected_value = value
+        print(f"Selected key value received: {value}")  # Debugging message
+
+        # Update the label to display the selected key
+        self.label.setText(f"Selected Key: {value}. Please scan your ID.")
 
     def showEvent(self, event):
         """Reset the page state when it is shown."""
@@ -298,6 +336,7 @@ class ThirdPage(QWidget):
             if result[0] == 200:
                 self.setStyleSheet("background-color: green; color: white;")  # Set background to green
                 self.label.setText("Access granted!")
+                self.log_transaction(result[1])  # Log the transaction
             else:
                 self.setStyleSheet("background-color: red; color: white;")  # Set background to red
                 self.label.setText("Access denied. Cardholder not found or disabled")
@@ -315,9 +354,10 @@ class ThirdPage(QWidget):
         # Simulate logging the transaction to the server
         headers = {"X-API-KEY": "keycab.api.key"}
         try:
-            res = requests.post('https://keycabinet.cspc.edu.ph/logs/store', json={
+            # Use self.selected_value to access the selected key value
+            res = requests.post('https://keycabinet.cspc.edu.ph/logs/borrowed', json={
                 "faculty_id": uid,
-                "key_id": 1,
+                "key_id": self.selected_value,  # Use the selected key value
                 "details": "Borrowed laboratory key",
                 "date_time_borrowed": datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
             }, headers=headers)
@@ -344,20 +384,39 @@ class ThirdPage(QWidget):
         # Navigate back to the main page
         self.stacked_widget.setCurrentIndex(0)
 
+    def keyPressEvent(self, event):
+        """Handle key press events."""
+        if event.key() == Qt.Key_0:  # Check if the '0' key is pressed
+            print("User pressed 0: Cancelling scanning and navigating back to the main page.")  # Debugging message
+            if hasattr(self, 'nfc_thread') and self.nfc_thread.isRunning():
+                self.nfc_thread.stop()  # Stop the NFC thread gracefully
+                self.nfc_thread.wait()  # Wait for the thread to finish
+            self.go_to_main_page()  # Navigate back to the main page
+        else:
+            super().keyPressEvent(event)  # Call the base class implementation for other keys
+
 
 class NFCReaderThread(QThread):
     uid_signal = Signal(str)  # Signal to send the UID to the main thread
     error_signal = Signal(str)  # Signal to send error messages
 
+    def __init__(self):
+        super().__init__()
+        self.stop_flag = Event()  # Create a stop flag
+
     def run(self):
         try:
-            uid = getUID()  # Call the provided getUID function
+            uid = getUID(self.stop_flag)  # Pass the stop flag to getUID
             if uid:
                 self.uid_signal.emit(uid)  # Emit the UID if found
             else:
-                self.error_signal.emit("Failed to read card.")
+                self.error_signal.emit("Scanning canceled.")
         except Exception as e:
             self.error_signal.emit(str(e))
+
+    def stop(self):
+        """Stop the thread gracefully."""
+        self.stop_flag.set()  # Set the stop flag to interrupt getUID
 
 
 ############################### CONNECTION CHECKER ###############################
@@ -452,7 +511,7 @@ def getIDholder(uid):
     headers = {"X-API-KEY": "keycab.api.key"}
     req = requests.get("https://keycabinet.cspc.edu.ph/api/faculty", headers = headers)
     result = req.json()
-    
+    print(result)
     for _faculty in range(len(result)):
         if(str(uid) == result[_faculty]['rfid_uid']):
             if (result[_faculty]['status'] == "Disabled"):
@@ -463,25 +522,24 @@ def getIDholder(uid):
             continue
     return [404, None]
 
-def getUID(): 
+def getUID(stop_flag): 
     def getID():
         uid_parsed = ""
         try:
             reader = nfc.Reader()
             reader.connect()
             raw_uid = reader.get_uid()
-            uid = raw_uid[::-1]
             for _byte in range(len(raw_uid)):
-                uid_parsed += "".join(f'{raw_uid[_byte]:x}')
+                uid_parsed += f'{raw_uid[_byte]:02x}'  # Ensure two-character hex with leading zeroes
             return uid_parsed
-
         except Exception as e:
             return None
-        
-    while getID() is None:
-        continue
-    
-    return getID()
+
+    while not stop_flag.is_set():  # Check if the stop flag is set
+        uid = getID()
+        if uid is not None:
+            return uid
+    return None  # Return None if the stop flag is set
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)
@@ -508,7 +566,7 @@ if __name__ == "__main__":
     stacked_widget.setCurrentIndex(0)
 
     # Show the stacked widget
-    stacked_widget.setFixedSize(1024, 600)  # Make the window size constant
+    stacked_widget.setFixedSize(1280, 720)  # Make the window size constant
     stacked_widget.show()
 
     sys.exit(app.exec())
