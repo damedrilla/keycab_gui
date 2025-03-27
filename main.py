@@ -9,6 +9,7 @@ from py122u import nfc
 from PySide6.QtCore import QThread, Signal
 import datetime
 from threading import Event
+from lock_controller import changeLockState
 
 ############################### MAIN PAGE ###############################
 class MainPage(QWidget):
@@ -21,7 +22,7 @@ class MainPage(QWidget):
 
         # Create a label and set an image
         image_label = QLabel()
-        pixmap = QPixmap("img/CSS.png")  # Replace with the path to your image
+        pixmap = QPixmap("/home/cyrene/keycab_gui/img/CSS.png")  # Replace with the path to your image
         scaled_pixmap = pixmap.scaled(400, 400, Qt.KeepAspectRatio, Qt.SmoothTransformation)  # Scale the image
         image_label.setPixmap(scaled_pixmap)
         image_label.setAlignment(Qt.AlignCenter)  # Center-align the image
@@ -336,6 +337,7 @@ class ThirdPage(QWidget):
             if result[0] == 200:
                 self.setStyleSheet("background-color: green; color: white;")  # Set background to green
                 self.label.setText("Access granted!")
+                changeLockState('unlock')
                 self.log_transaction(result[1])  # Log the transaction
             else:
                 self.setStyleSheet("background-color: red; color: white;")  # Set background to red
@@ -565,8 +567,7 @@ if __name__ == "__main__":
     # Set the initial page
     stacked_widget.setCurrentIndex(0)
 
-    # Show the stacked widget
-    stacked_widget.setFixedSize(1280, 720)  # Make the window size constant
-    stacked_widget.show()
+    # Show the stacked widget in full-screen mode
+    stacked_widget.showFullScreen()  # Change from setFixedSize to showFullScreen()
 
     sys.exit(app.exec())
