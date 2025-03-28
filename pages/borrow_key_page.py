@@ -22,18 +22,22 @@ class BorrowKeyPage(QWidget):
         self.text_field = QLineEdit()  # Use self to access it in other methods
         self.text_field.setValidator(QIntValidator(0, 9))  # Accept only numbers between 0 and 9
         self.text_field.setAlignment(Qt.AlignCenter)  # Center-align the text
-        self.text_field.setFixedHeight(50)  # Make the text field taller
+
+        # Style the text field
         self.text_field.setStyleSheet("""
             QLineEdit {
                 background-color: white;
                 color: black;
                 border: 2px solid #0074D9;
                 border-radius: 10px;
-                padding: 5px;
-                font-size: 18px;  /* Larger font size */
-                font-weight: bold; /* Bold text */
+                padding: 10px;             /* Increase padding for better spacing */
+                font-size: 20px;           /* Larger font size for better visibility */
+                font-weight: bold;         /* Bold text */
             }
         """)
+
+        # Set a fixed height for the text field to make it taller
+        self.text_field.setFixedHeight(50)  # Increase the height to 50px for better visibility
 
         # Create a "Proceed" button
         proceed_button = QPushButton("[Enter] Proceed")
@@ -142,14 +146,17 @@ class BorrowKeyPage(QWidget):
                 color: white;              /* White text */
                 border: none;
                 border-radius: 15px;       /* Rounded corners */
-                padding: 10px;
-                font-size: 16px;           /* Slightly larger font size */
+                padding: 15px;             /* Increase padding for a taller button */
+                font-size: 20px;           /* Larger font size for better visibility */
                 font-weight: bold;         /* Bold text */
             }
             QPushButton:hover {
                 background-color: #005bb5; /* Darker blue on hover */
             }
         """)
+
+        # Set a fixed height for the button to make it taller
+        button.setFixedHeight(70)  # Increase the height to 70px for better visibility
 
         # Add drop shadow effect
         shadow = QGraphicsDropShadowEffect()

@@ -1,3 +1,4 @@
+import platform  # Import platform to check the operating system
 from PySide6.QtWidgets import QWidget, QLabel, QVBoxLayout, QPushButton, QHBoxLayout, QGraphicsDropShadowEffect
 from PySide6.QtCore import Qt
 from PySide6.QtGui import QPixmap, QFont
@@ -10,9 +11,12 @@ class MainPage(QWidget):
         # Set the background color of the main page
         self.setStyleSheet("background-color: #001f3f; color: white;")  # Dark blue background, white text
 
+        # Determine the image path based on the operating system
+        image_path = self.get_image_path()
+
         # Create a label and set an image
         image_label = QLabel()
-        pixmap = QPixmap("/home/cyrene/keycab_gui/img/CSS.png")  # Replace with the path to your image
+        pixmap = QPixmap(image_path)  # Use the determined image path
         scaled_pixmap = pixmap.scaled(400, 400, Qt.KeepAspectRatio, Qt.SmoothTransformation)  # Scale the image
         image_label.setPixmap(scaled_pixmap)
         image_label.setAlignment(Qt.AlignCenter)  # Center-align the image
@@ -80,6 +84,13 @@ class MainPage(QWidget):
         layout.addWidget(container)
         self.setLayout(layout)
 
+    def get_image_path(self):
+        """Determine the image path based on the operating system."""
+        if platform.system() == "Windows":
+            return "img/CSS.png"  # Windows path
+        else:
+            return "/home/cyrene/keycab_gui/img/CSS.png"  # Linux path
+
     def style_button(self, button):
         # Apply rounded corners, light blue color, and hover effect using QSS
         button.setStyleSheet("""
@@ -88,14 +99,17 @@ class MainPage(QWidget):
                 color: white;              /* White text */
                 border: none;
                 border-radius: 15px;       /* Rounded corners */
-                padding: 10px;
-                font-size: 16px;           /* Slightly larger font size */
+                padding: 15px;             /* Increase padding for a taller button */
+                font-size: 20px;           /* Larger font size for better visibility */
                 font-weight: bold;         /* Bold text */
             }
             QPushButton:hover {
                 background-color: #005bb5; /* Darker blue on hover */
             }
         """)
+
+        # Set a fixed height for the button to make it taller
+        button.setFixedHeight(70)  # Increase the height to 70px for better visibility
 
         # Add drop shadow effect
         shadow = QGraphicsDropShadowEffect()
