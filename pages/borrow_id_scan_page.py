@@ -1,4 +1,4 @@
-from PySide6.QtWidgets import QWidget, QLabel, QVBoxLayout
+from PySide6.QtWidgets import QWidget, QLabel, QVBoxLayout, QApplication
 from PySide6.QtCore import Qt
 import requests
 from PySide6.QtCore import QTimer
@@ -55,7 +55,9 @@ class BorrowIDScanPage(QWidget):
 
     def handle_uid(self, uid):
         # Update the label to indicate data is being fetched
-        self.label.setText("Getting cardreader data from the server...")
+        self.setStyleSheet("background-color: black; color: white;")
+        self.label.setText("Getting cardholder data from the server...")
+        QApplication.processEvents()  # Process UI updates before making the server request
 
         # Simulate a server request to fetch cardholder data
         try:

@@ -1,6 +1,7 @@
 import sys
 from PySide6.QtWidgets import QApplication, QStackedWidget
 from utils.connection import ConnectionPopup, ConnectionMonitor
+from utils.nfc_utils import NFCReaderPopup  # Import the NFC reader popup
 from pages.main_page import MainPage
 from pages.borrow_key_page import BorrowKeyPage
 from pages.borrow_id_scan_page import BorrowIDScanPage
@@ -8,6 +9,10 @@ from utils.connection import show_connection_error_popup
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)
+
+    # Show the NFC reader popup
+    nfc_popup = NFCReaderPopup()
+    nfc_popup.exec()  # Show the popup as a modal dialog
 
     # Create and show the connection popup
     server_url = "https://keycabinet.cspc.edu.ph/"

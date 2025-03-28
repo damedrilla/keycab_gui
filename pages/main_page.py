@@ -43,7 +43,7 @@ class MainPage(QWidget):
         third_page_button = QPushButton("[2] Return Key")
         third_page_button.setFixedHeight(50)  # Make the button thicker
         third_page_button.clicked.connect(self.go_to_third_page)
-        third_page_button.setShortcut("0")  # Assign hotkey '0'
+        third_page_button.setShortcut("2")  # Assign hotkey '0'
 
         # Apply rounded corners, drop shadows, and light blue color to the buttons
         self.style_button(keypad_button)
@@ -120,7 +120,11 @@ class MainPage(QWidget):
         button.setGraphicsEffect(shadow)
 
     def go_to_second_page(self):
-        self.stacked_widget.setCurrentIndex(1)  # Switch to the keypad page
+        """Switch to the second page if it's not already active."""
+        if self.stacked_widget.currentIndex() != 1:  # Check if the current page is not the second page
+            self.stacked_widget.setCurrentIndex(1)  # Switch to the second page
 
     def go_to_third_page(self):
-        self.stacked_widget.setCurrentIndex(2)  # Switch to the third page
+        """Switch to the third page if it's not already active."""
+        if self.stacked_widget.currentIndex() != 2:  # Check if the current page is not the third page
+            self.stacked_widget.setCurrentIndex(2)  # Switch to the third page
