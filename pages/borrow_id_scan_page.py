@@ -5,6 +5,7 @@ from PySide6.QtCore import QTimer
 import datetime
 from utils.nfc_reader import NFCReaderThread
 from utils.api_utils import getIDholder
+
 class BorrowIDScanPage(QWidget):
     # The BorrowIDScanPage class remains the same as the original ThirdPage class.
     # Simply replace all references to "ThirdPage" with "BorrowIDScanPage".
