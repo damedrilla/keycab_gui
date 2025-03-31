@@ -67,6 +67,10 @@ class BorrowIDScanPage(QWidget):
             if result[0] == 200:
                 self.setStyleSheet("background-color: green; color: white;")  # Set background to green
                 self.label.setText("Access granted!")
+                try:
+                    requests.get('http://localhost:5001/unlock')
+                except:
+                    pass
                 self.log_transaction(result[1])  # Log the transaction
             else:
                 self.setStyleSheet("background-color: red; color: white;")  # Set background to red
