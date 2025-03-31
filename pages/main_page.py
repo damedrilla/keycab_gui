@@ -1,7 +1,7 @@
 import platform  # Import platform to check the operating system
 from PySide6.QtWidgets import QWidget, QLabel, QVBoxLayout, QPushButton, QHBoxLayout, QGraphicsDropShadowEffect
 from PySide6.QtCore import Qt
-from PySide6.QtGui import QPixmap, QFont
+from PySide6.QtGui import QPixmap, QFont, QShortcut, QKeySequence
 
 class MainPage(QWidget):
     def __init__(self, stacked_widget):
@@ -42,7 +42,7 @@ class MainPage(QWidget):
         # Create a button to go to the third page
         third_page_button = QPushButton("[2] Return Key")
         third_page_button.setFixedHeight(50)  # Make the button thicker
-        third_page_button.clicked.connect(self.go_to_third_page)
+        third_page_button.clicked.connect(self.go_to_return_key_page)
         third_page_button.setShortcut("2")  # Assign hotkey '0'
 
         # Apply rounded corners, drop shadows, and light blue color to the buttons
@@ -83,6 +83,10 @@ class MainPage(QWidget):
         layout = QVBoxLayout()
         layout.addWidget(container)
         self.setLayout(layout)
+
+        # Add a hotkey to navigate to the Return Key Page
+        return_key_shortcut = QShortcut(QKeySequence("R"), self)
+        return_key_shortcut.activated.connect(self.go_to_return_key_page)
 
     def get_image_path(self):
         """Determine the image path based on the operating system."""
@@ -128,3 +132,7 @@ class MainPage(QWidget):
         """Switch to the third page if it's not already active."""
         if self.stacked_widget.currentIndex() != 2:  # Check if the current page is not the third page
             self.stacked_widget.setCurrentIndex(2)  # Switch to the third page
+
+    def go_to_return_key_page(self):
+        """Navigate to the Return Key Page."""
+        self.stacked_widget.setCurrentIndex(3)  # Assuming ReturnKeyPage is the 4th page in the stack

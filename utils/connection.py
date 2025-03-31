@@ -139,15 +139,9 @@ def show_connection_error_popup(app, connection_restored_signal):
     error_label.setWordWrap(True)
     error_label.setStyleSheet("font-size: 30px; font-weight: bold;")  # Set font size to 18px and make it bold
 
-    # Create a button to close the application
-    close_button = QPushButton("Close Application")
-    close_button.setFixedHeight(40)
-    close_button.clicked.connect(app.quit)  # Close the app when clicked
-
     # Create a layout for the popup
     layout = QVBoxLayout()
     layout.addWidget(error_label)
-    layout.addWidget(close_button, alignment=Qt.AlignCenter)
     error_popup.setLayout(layout)
 
     # Connect the connection restored signal to close the popup

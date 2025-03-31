@@ -4,7 +4,7 @@ from PySide6.QtGui import QFont, QIntValidator  # Import QPixmap for handling im
 from PySide6.QtWidgets import QDialog, QMessageBox
 
 
-class BorrowKeyPage(QWidget):
+class ReturnKeyPage(QWidget):
     def __init__(self, stacked_widget):
         super().__init__()
         self.stacked_widget = stacked_widget
@@ -146,7 +146,7 @@ class BorrowKeyPage(QWidget):
         borrow_id_scan_page.set_selected_value(value)  # Pass the value to BorrowIDScanPage
 
         # Navigate to the borrow ID scan page
-        self.stacked_widget.setCurrentIndex(2)
+        self.stacked_widget.setCurrentIndex(4)
 
     def go_to_main_page(self):
         self.stacked_widget.setCurrentIndex(0)  # Switch back to the main page
