@@ -1,12 +1,35 @@
 from PySide6.QtWidgets import QWidget, QLabel, QVBoxLayout, QPushButton, QGraphicsDropShadowEffect, QLineEdit, QGridLayout, QFrame, QMessageBox
-from PySide6.QtCore import Qt
+from PySide6.QtCore import Qt, QObject, Signal, Slot, QThread
 from PySide6.QtGui import QFont, QIntValidator, QColor
 import requests  # Import the requests library for API calls
+
+class APIWorker(QObject):
+    data_fetched = Signal(list)  # Signal to emit the fetched data
+    error_occurred = Signal(str)  # Signal to emit in case of an error
+
+    @Slot()
+    def fetch_key_data(self):
+        """Fetch key data from the API."""
+        try:
+            headers = {"X-API-KEY": "keycab.api.key"}
+            response = requests.get("https://keycabinet.cspc.edu.ph/api/key", headers=headers)
+            response.raise_for_status()  # Raise an exception for HTTP errors
+            key_data = response.json()  # Parse the JSON response
+            self.data_fetched.emit(key_data)  # Emit the fetched data
+        except requests.RequestException as e:
+            self.error_occurred.emit(str(e))  # Emit the error message
 
 class BorrowKeyPage(QWidget):
     def __init__(self, stacked_widget):
         super().__init__()
         self.stacked_widget = stacked_widget
+        self.key_data = []  # Initialize key data as an empty list
+
+        # Create a loading indicator
+        self.loading_label = QLabel("Getting key status...")
+        self.loading_label.setAlignment(Qt.AlignCenter)
+        self.loading_label.setStyleSheet("font-size: 20px; color: white;")
+        self.loading_label.hide()  # Initially hide the loading label
 
         # Set the background color of the borrow key page
         self.setStyleSheet("background-color: #001f3f; color: white;")  # Dark blue background, white text
@@ -45,7 +68,6 @@ class BorrowKeyPage(QWidget):
 
         # Create the key status grid
         self.key_status_grid = QGridLayout()
-        self.populate_key_status_grid()
 
         # Wrap the grid in a QWidget to apply rounded corners
         grid_container = QWidget()
@@ -63,14 +85,32 @@ class BorrowKeyPage(QWidget):
         layout.addWidget(label)
         layout.addWidget(self.text_field)
         layout.addWidget(proceed_button)
+        layout.addWidget(self.loading_label)  # Add the loading label to the layout
         layout.addWidget(grid_container)
         self.setLayout(layout)
 
+        # Create a thread and worker for the API call
+        self.api_thread = QThread()
+        self.api_worker = APIWorker()
+        self.api_worker.moveToThread(self.api_thread)
+
+        # Connect signals and slots
+        self.api_worker.data_fetched.connect(self.on_key_data_fetched)
+        self.api_worker.error_occurred.connect(self.on_api_error)
+        self.api_thread.started.connect(self.api_worker.fetch_key_data)
+
     def showEvent(self, event):
-        """Reset the text field and focus the cursor when the page is shown."""
+        """Reset the text field, focus the cursor, and fetch the latest key data when the page is shown."""
         super().showEvent(event)
         self.text_field.clear()  # Clear the text field
         self.text_field.setFocus()  # Focus the cursor on the text field
+
+        # Show the loading indicator and hide the grid
+        self.loading_label.show()
+        self.key_status_grid.setEnabled(False)
+
+        # Start the API call in a separate thread
+        self.api_thread.start()
 
     def confirm_selection(self):
         # Get the value from the text field
@@ -170,16 +210,6 @@ class BorrowKeyPage(QWidget):
 
     def populate_key_status_grid(self):
         """Populate the key status grid with tiles."""
-        try:
-            headers = {"X-API-KEY": "keycab.api.key"}
-            response = requests.get("https://keycabinet.cspc.edu.ph/api/key", headers=headers)
-            response.raise_for_status()  # Raise an exception for HTTP errors
-            self.key_data = response.json()  # Store the fetched key data in an instance variable
-        except requests.RequestException as e:
-            print(f"Error fetching key data: {e}")  # Debugging message
-            QMessageBox.critical(self, "Error", "Failed to fetch key data. Please try again later.")
-            self.key_data = []  # Set to an empty list if the API call fails
-            return
 
         # Clear the grid layout before populating it
         while self.key_status_grid.count():
@@ -215,3 +245,26 @@ class BorrowKeyPage(QWidget):
             row = index // 3
             col = index % 3
             self.key_status_grid.addWidget(tile, row, col)
+
+    def on_key_data_fetched(self, key_data):
+        """Handle the fetched key data."""
+        self.key_data = key_data  # Update the key data
+        self.api_thread.quit()  # Stop the thread
+
+        # Hide the loading indicator and enable the grid
+        self.loading_label.hide()
+        self.key_status_grid.setEnabled(True)
+
+        self.populate_key_status_grid()  # Populate the grid with the new data
+
+    def on_api_error(self, error_message):
+        """Handle API errors."""
+        self.api_thread.quit()  # Stop the thread
+
+        # Hide the loading indicator and enable the grid
+        self.loading_label.hide()
+        self.key_status_grid.setEnabled(True)
+
+        QMessageBox.critical(self, "Error", f"Failed to fetch key data: {error_message}")
+        self.key_data = []  # Clear the key data
+        self.populate_key_status_grid()  # Clear the grid

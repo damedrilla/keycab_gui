@@ -2,7 +2,6 @@ from PySide6.QtWidgets import QWidget, QLabel, QVBoxLayout, QApplication
 from PySide6.QtCore import Qt
 import requests
 from PySide6.QtCore import QTimer
-import datetime
 from utils.nfc_reader import NFCReaderThread
 from utils.api_utils import getIDholder
 
@@ -63,7 +62,6 @@ class ReturnIDScanPage(QWidget):
         # Simulate a server request to fetch cardholder data
         try:
             result = getIDholder(uid)
-            print(uid + " " + str(result))
             res = self.log_transaction(result[1])
             if res == 200:
                 self.setStyleSheet("background-color: green; color: white;")  # Set background to green
@@ -88,7 +86,7 @@ class ReturnIDScanPage(QWidget):
 
     def log_transaction(self, uid):
         # Simulate logging the transaction to the server
-        headers = {"X-API-KEY": "keycab.api.key"}
+        headers = {"X-API-KEY": "keycab.api.key", "content-type": "application/json", "accept": "application/json"}
         try:
             # Use self.selected_value to access the selected key value
             res = requests.post('https://keycabinet.cspc.edu.ph/logs/returned', json={
@@ -96,6 +94,7 @@ class ReturnIDScanPage(QWidget):
                 "key_id": self.selected_value,  # Use the selected key value
                     
             }, headers=headers)
+            print(res.content)
             if res.status_code == 200:
                 print("Transaction logged successfully.")
                 return 200
