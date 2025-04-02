@@ -64,14 +64,15 @@ class ReturnIDScanPage(QWidget):
         try:
             result = getIDholder(uid)
             print(uid + " " + str(result))
-            if result[0] == 200:
+            res = self.log_transaction(result[1])
+            if res == 200:
                 self.setStyleSheet("background-color: green; color: white;")  # Set background to green
                 self.label.setText("Success! Thank you for returning the key.")
                 try:
                     requests.get('http://localhost:5001/unlock')
                 except:
                     pass
-                self.log_transaction(result[1])  # Log the transaction
+            # Log the transaction
             else:
                 self.setStyleSheet("background-color: red; color: white;")  # Set background to red
                 self.label.setText("Access denied. Cardholder not found or disabled")
@@ -90,19 +91,20 @@ class ReturnIDScanPage(QWidget):
         headers = {"X-API-KEY": "keycab.api.key"}
         try:
             # Use self.selected_value to access the selected key value
-            res = requests.post('https://keycabinet.cspc.edu.ph/logs/borrowed', json={
-                "faculty_id": uid,
+            res = requests.post('https://keycabinet.cspc.edu.ph/logs/returned', json={
+                "faculty_id": str(uid),
                 "key_id": self.selected_value,  # Use the selected key value
-                "details": "Borrowed laboratory key",
-                "date_time_borrowed": datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                    
             }, headers=headers)
-            print(res.content)
-            if res.status_code == 201:
+            if res.status_code == 200:
                 print("Transaction logged successfully.")
+                return 200
             else:
                 print("Failed to log transaction.")
+                return 403
         except Exception as e:
             print(f"Error logging transaction: {str(e)}")
+            return 500
 
     def handle_error(self, error_message):
         # Display error messages

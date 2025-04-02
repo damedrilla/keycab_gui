@@ -1,8 +1,7 @@
-from PySide6.QtWidgets import QWidget, QLabel, QVBoxLayout, QPushButton, QGraphicsDropShadowEffect, QLineEdit
+from PySide6.QtWidgets import QWidget, QLabel, QVBoxLayout, QPushButton, QGraphicsDropShadowEffect, QLineEdit, QGridLayout, QFrame, QMessageBox
 from PySide6.QtCore import Qt
-from PySide6.QtGui import QFont, QIntValidator  # Import QPixmap for handling images and QFont for setting the font
-from PySide6.QtWidgets import QDialog, QMessageBox
-
+from PySide6.QtGui import QFont, QIntValidator, QColor
+import requests  # Import the requests library for API calls
 
 class BorrowKeyPage(QWidget):
     def __init__(self, stacked_widget):
@@ -13,16 +12,16 @@ class BorrowKeyPage(QWidget):
         self.setStyleSheet("background-color: #001f3f; color: white;")  # Dark blue background, white text
 
         # Create a label and set its text
-        label = QLabel("Enter the key number (1-9), enter 0 to go back:")
+        label = QLabel("Enter the key number (enter 0 to exit)")
         label.setAlignment(Qt.AlignCenter)
         label_font = QFont("Arial", 30, QFont.Bold)  # Set font to Arial, size 30, bold
         label.setFont(label_font)
 
         # Create a text field with a validator to accept only numbers 0-9
-        self.text_field = QLineEdit()  # Use self to access it in other methods
+        self.text_field = QLineEdit()
         self.text_field.setValidator(QIntValidator(0, 9))  # Accept only numbers between 0 and 9
         self.text_field.setMaxLength(1)  # Restrict input to only one character
-        self.text_field.setAlignment(Qt.AlignCenter)  # Center-align the text
+        self.text_field.setAlignment(Qt.AlignCenter)
 
         # Style the text field
         self.text_field.setStyleSheet("""
@@ -31,20 +30,22 @@ class BorrowKeyPage(QWidget):
                 color: black;
                 border: 2px solid #0074D9;
                 border-radius: 10px;
-                padding: 10px;             /* Increase padding for better spacing */
-                font-size: 20px;           /* Larger font size for better visibility */
-                font-weight: bold;         /* Bold text */
+                padding: 10px;
+                font-size: 20px;
+                font-weight: bold;
             }
         """)
-
-        # Set a fixed height for the text field to make it taller
-        self.text_field.setFixedHeight(50)  # Increase the height to 50px for better visibility
+        self.text_field.setFixedHeight(50)
 
         # Create a "Proceed" button
         proceed_button = QPushButton("[Enter] Proceed")
-        self.style_button(proceed_button)  # Apply button styling
-        proceed_button.clicked.connect(self.confirm_selection)  # Connect to confirmation prompt
-        proceed_button.setShortcut(Qt.Key_Enter)  # Assign hotkey [Numpad Enter]
+        self.style_button(proceed_button)
+        proceed_button.clicked.connect(self.confirm_selection)
+        proceed_button.setShortcut(Qt.Key_Enter)
+
+        # Create the key status grid
+        self.key_status_grid = QGridLayout()
+        self.populate_key_status_grid()
 
         # Wrap the grid in a QWidget to apply rounded corners
         grid_container = QWidget()
@@ -55,15 +56,13 @@ class BorrowKeyPage(QWidget):
                 padding: 10px;
             }
         """)
+        grid_container.setLayout(self.key_status_grid)
 
-        # Create a layout for the grid container
-        grid_layout = QVBoxLayout(grid_container)
-        grid_layout.addWidget(label)
-        grid_layout.addWidget(self.text_field)
-        grid_layout.addWidget(proceed_button)
-
-        # Use a layout to add the grid container
+        # Create a layout for the page
         layout = QVBoxLayout()
+        layout.addWidget(label)
+        layout.addWidget(self.text_field)
+        layout.addWidget(proceed_button)
         layout.addWidget(grid_container)
         self.setLayout(layout)
 
@@ -86,28 +85,28 @@ class BorrowKeyPage(QWidget):
         # Validate the input
         if not value:
             print("Invalid input: Cannot proceed with empty value.")  # Debugging message
-            error_dialog = QDialog(self)
-            error_dialog.setWindowTitle("Invalid Input")
-            error_dialog.setModal(True)
-            error_dialog.setFixedSize(300, 150)
+            QMessageBox.critical(self, "Invalid Input", "Please enter a valid number.")
+            return
 
-            # Create a label for the error message
-            error_label = QLabel("Please enter a valid number (1-9) to proceed.")
-            error_label.setAlignment(Qt.AlignCenter)
-            error_label.setWordWrap(True)
+        # Convert the input to an integer
+        try:
+            key_id = int(value)
+        except ValueError:
+            print("Invalid input: Not a number.")  # Debugging message
+            QMessageBox.critical(self, "Invalid Input", "Please enter a valid number.")
+            return
 
-            # Create a button to close the error dialog
-            close_button = QPushButton("OK")
-            close_button.clicked.connect(error_dialog.accept)
+        # Check if the key ID exists in the fetched key data
+        selected_key = next((key for key in self.key_data if key["key_id"] == key_id), None)
+        if not selected_key:
+            print(f"Key {key_id} does not exist.")  # Debugging message
+            QMessageBox.critical(self, "Invalid Key", f"Key {key_id} does not exist.")
+            return
 
-            # Create a layout for the error dialog
-            error_layout = QVBoxLayout()
-            error_layout.addWidget(error_label)
-            error_layout.addWidget(close_button, alignment=Qt.AlignCenter)
-            error_dialog.setLayout(error_layout)
-
-            # Show the error dialog
-            error_dialog.exec()
+        # Check if the selected key is available
+        if selected_key["status"] != "Available":
+            print(f"Key {key_id} is not available.")  # Debugging message
+            QMessageBox.critical(self, "Key Unavailable", f"Key {key_id} is not available for selection.")
             return
 
         # Show a confirmation prompt
@@ -116,25 +115,15 @@ class BorrowKeyPage(QWidget):
         confirmation.setText(f"Are you sure you want to select key {value}?")
         confirmation.setStandardButtons(QMessageBox.Yes | QMessageBox.No)
 
-        # Resize the confirmation popup
-        confirmation.resize(750, 450)  # Set the size to 750x450
-
-        # Add hotkeys for Yes and No buttons
-        yes_button = confirmation.button(QMessageBox.Yes)
-        yes_button.setShortcut(Qt.Key_Enter)  # Numpad Enter for Yes
-
+        # Add hotkey for QMessageBox.No (Numpad 0)
         no_button = confirmation.button(QMessageBox.No)
-        no_button.setShortcut(Qt.Key_0)  # Numpad 0 for No
+        no_button.setShortcut(Qt.Key_0)  # Set Numpad 0 as the shortcut for "No"
 
-        # Show the confirmation dialog
         result = confirmation.exec()
-
         if result == QMessageBox.Yes:
-            # If the user confirms, proceed to the borrow ID scan page
             print(f"User confirmed selection: {value}")  # Debugging message
             self.proceed_to_borrow_id_scan_page(value)
         else:
-            # If the user cancels, stay on the current page
             print("User canceled the selection.")  # Debugging message
 
     def proceed_to_borrow_id_scan_page(self, value):
@@ -178,3 +167,51 @@ class BorrowKeyPage(QWidget):
         shadow.setYOffset(2)
         shadow.setColor(Qt.black)
         button.setGraphicsEffect(shadow)
+
+    def populate_key_status_grid(self):
+        """Populate the key status grid with tiles."""
+        try:
+            headers = {"X-API-KEY": "keycab.api.key"}
+            response = requests.get("https://keycabinet.cspc.edu.ph/api/key", headers=headers)
+            response.raise_for_status()  # Raise an exception for HTTP errors
+            self.key_data = response.json()  # Store the fetched key data in an instance variable
+        except requests.RequestException as e:
+            print(f"Error fetching key data: {e}")  # Debugging message
+            QMessageBox.critical(self, "Error", "Failed to fetch key data. Please try again later.")
+            self.key_data = []  # Set to an empty list if the API call fails
+            return
+
+        # Clear the grid layout before populating it
+        while self.key_status_grid.count():
+            item = self.key_status_grid.takeAt(0)
+            widget = item.widget()
+            if widget:
+                widget.deleteLater()
+
+        # Populate the grid with tiles
+        for index, key in enumerate(self.key_data):
+            tile = QFrame()
+            tile.setFixedSize(100, 100)
+            is_available = key['status'] == 'Available'
+            tile.setStyleSheet(f"""
+                QFrame {{
+                    background-color: {'blue' if is_available else 'red'};
+                    border-radius: 10px;
+                }}
+            """)
+
+            tile_layout = QVBoxLayout(tile)
+            tile_layout.setContentsMargins(0, 0, 0, 0)
+            tile_layout.setAlignment(Qt.AlignCenter)
+
+            label = QLabel(f"Key {key['key_id']}\n{key['laboratory']}")
+            label.setAlignment(Qt.AlignCenter)
+            label.setStyleSheet("color: white; font-weight: bold;")
+            tile_layout.addWidget(label)
+
+            if not is_available:
+                tile.setEnabled(False)
+
+            row = index // 3
+            col = index % 3
+            self.key_status_grid.addWidget(tile, row, col)

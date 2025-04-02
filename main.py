@@ -12,6 +12,9 @@ from utils.connection import show_connection_error_popup
 if __name__ == "__main__":
     app = QApplication(sys.argv)
 
+    # Check for a command-line argument to enable windowed mode
+    windowed_mode = "--windowed" in sys.argv
+
     # Show the NFC reader popup
     nfc_popup = NFCReaderPopup()  # Set font size and weight
     nfc_popup.adjustSize()  # Adjust the size to fit the content
@@ -43,8 +46,12 @@ if __name__ == "__main__":
     # Set the initial page
     stacked_widget.setCurrentIndex(0)
 
-    # Show the stacked widget in full-screen mode
-    stacked_widget.showFullScreen()
+    # Show the stacked widget in full-screen or windowed mode based on the flag
+    if windowed_mode:
+        stacked_widget.setFixedSize(1024, 768)  # Set a fixed size for windowed mode
+        stacked_widget.show()  # Show in windowed mode
+    else:
+        stacked_widget.showFullScreen()  # Show in full-screen mode
 
     # Start the connection monitor
     connection_monitor = ConnectionMonitor(server_url)
